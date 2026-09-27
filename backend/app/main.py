@@ -1,9 +1,20 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.database.supabase import create_service_client
 
-app = FastAPI(title="ThesisLens API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    app.state.supabase_service = await create_service_client()
+    yield
+
+
+app = FastAPI(title="ThesisLens API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,4 +33,4 @@ async def health() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", reload=True,host="127.0.0.1",port=8000)
+    uvicorn.run("app.main:app", reload=True, host="127.0.0.1", port=8000)
