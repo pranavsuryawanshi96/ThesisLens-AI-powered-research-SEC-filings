@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.me import router as me_router
 from app.config import settings
 from app.database.supabase import create_service_client
 
@@ -28,6 +29,9 @@ app.add_middleware(
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+app.include_router(me_router)
 
 
 if __name__ == "__main__":
