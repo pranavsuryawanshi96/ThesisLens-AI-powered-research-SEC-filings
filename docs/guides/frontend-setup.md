@@ -6,11 +6,11 @@ This project uses a Vite + React SPA because the frontend is an internal tool th
 
 ```bash
 cd frontend
-pnpm create vite . --template react-ts
-pnpm install
-pnpm add react-router-dom @supabase/supabase-js
-pnpm add -D tailwindcss @tailwindcss/vite
-pnpm dlx shadcn@latest init
+npm create vite . --template react-ts
+npm install
+npm add react-router-dom @supabase/supabase-js
+npm add -D tailwindcss @tailwindcss/vite
+npm dlx shadcn@latest init
 ```
 
 ## Run
