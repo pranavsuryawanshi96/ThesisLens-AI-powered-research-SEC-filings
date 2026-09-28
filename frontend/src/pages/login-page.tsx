@@ -22,7 +22,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const from = (location.state as { from?: string } | null)?.from ?? "/";
+  const from = (location.state as { from?: string } | null)?.from ?? "/chats";
   if (session) return <Navigate to={from} replace />;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

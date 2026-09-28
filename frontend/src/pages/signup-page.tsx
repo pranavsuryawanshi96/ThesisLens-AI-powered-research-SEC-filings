@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from "react"
-import { Link, Navigate, useNavigate } from "react-router-dom"
+import { useState, type FormEvent } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,52 +9,54 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useAuth } from "@/hooks/use-auth"
-import { supabase } from "@/lib/supabase"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase";
 
 // Supabase's default minimum; keep in sync with Authentication → Providers → Email.
-const MIN_PASSWORD_LENGTH = 6
+const MIN_PASSWORD_LENGTH = 6;
 
 export function SignupPage() {
-  const { session } = useAuth()
-  const navigate = useNavigate()
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const [confirmationSentTo, setConfirmationSentTo] = useState<string | null>(null)
+  const { session } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [confirmationSentTo, setConfirmationSentTo] = useState<string | null>(
+    null,
+  );
 
-  if (session) return <Navigate to="/" replace />
+  if (session) return <Navigate to="/chats" replace />;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const form = new FormData(event.currentTarget)
-    const email = String(form.get("email"))
-    const password = String(form.get("password"))
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email"));
+    const password = String(form.get("password"));
     if (password !== String(form.get("confirmPassword"))) {
-      setError("Passwords do not match")
-      return
+      setError("Passwords do not match");
+      return;
     }
 
-    setPending(true)
-    setError(null)
+    setPending(true);
+    setError(null);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}/login` },
-    })
-    setPending(false)
+    });
+    setPending(false);
     if (error) {
-      setError(error.message)
-      return
+      setError(error.message);
+      return;
     }
     // No session back means "Confirm email" is on: the user must click the link first.
     if (!data.session) {
-      setConfirmationSentTo(email)
-      return
+      setConfirmationSentTo(email);
+      return;
     }
-    navigate("/", { replace: true })
+    navigate("/chats", { replace: true });
   }
 
   if (confirmationSentTo) {
@@ -64,7 +66,8 @@ export function SignupPage() {
           <CardHeader>
             <CardTitle>Check your inbox</CardTitle>
             <CardDescription>
-              We sent a confirmation link to {confirmationSentTo}. Click it, then sign in.
+              We sent a confirmation link to {confirmationSentTo}. Click it,
+              then sign in.
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -74,7 +77,7 @@ export function SignupPage() {
           </CardFooter>
         </Card>
       </main>
-    )
+    );
   }
 
   return (
@@ -88,7 +91,13 @@ export function SignupPage() {
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" autoComplete="email" required />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
@@ -123,7 +132,7 @@ export function SignupPage() {
               {pending ? "Creating account…" : "Sign up"}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
+              Already have an account?
               <Link to="/login" className="underline underline-offset-4">
                 Sign in
               </Link>
@@ -132,5 +141,5 @@ export function SignupPage() {
         </form>
       </Card>
     </main>
-  )
+  );
 }

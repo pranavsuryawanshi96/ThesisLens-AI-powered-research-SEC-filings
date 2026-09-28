@@ -120,7 +120,7 @@ async function parseBody(response: Response): Promise<unknown> {
 }
 
 // FastAPI errors are {"detail": "..."}, or {"detail": [{msg, ...}]} for 422s.
-function errorMessage(data: unknown, status: number): string {
+export function errorMessage(data: unknown, status: number): string {
   if (typeof data === "object" && data !== null && "detail" in data) {
     const { detail } = data
     if (typeof detail === "string") return detail

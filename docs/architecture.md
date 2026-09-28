@@ -259,6 +259,8 @@ Request body:
 }
 ```
 
+`useChat` always sends its chat `id` as well; the backend accepts either `threadId` or `id` as the thread ID (`threadId` wins when both are present). Only the last message, which must be a user message, is read — stored history is the source of truth.
+
 The `messages` payload should use the AI SDK UI message format at the frontend boundary. FastAPI can translate that wire format into internal Pydantic models before invoking the agent.
 
 Streaming responsibilities:

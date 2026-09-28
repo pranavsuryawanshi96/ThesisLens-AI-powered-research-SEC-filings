@@ -14,7 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import AsyncClient
 from supabase_auth.errors import AuthApiError
 
-from app.database.supabase import get_service_client
+from app.database.supabase import create_user_client, get_service_client
 
 # auto_error=False so a missing header gets our 401, not FastAPI's default 403.
 _bearer = HTTPBearer(auto_error=False)
@@ -60,3 +60,11 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+async def get_user_client(user: CurrentUserDep) -> AsyncClient:
+    """FastAPI dependency: a Supabase client acting as the current user (RLS enforced)."""
+    return await create_user_client(user.access_token)
+
+
+UserClientDep = Annotated[AsyncClient, Depends(get_user_client)]
