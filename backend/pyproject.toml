@@ -31,6 +31,7 @@ exclude-newer = "7 days"
 [dependency-groups]
 dev = [
     "docling==2.129.0",
+    "docling-core[chunking-openai]==2.97.1",
     "ipykernel==7.3.0",
     "pytest==9.1.1",
     "ruff==0.16.6",
