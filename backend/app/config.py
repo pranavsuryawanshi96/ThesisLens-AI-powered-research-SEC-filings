@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
 
+    # Hybrid retrieval. The full-text config is not a setting: it must match the
+    # 'english' used by the generated search_vector column.
+    retrieval_candidate_k: int = 50
+    retrieval_top_k: int = 10
+    retrieval_rrf_k: int = 60
+    retrieval_neighbor_radius: int = 1
+
     # Comma-separated in .env; use `cors_origins` for the parsed list.
     allowed_origins: str = "http://localhost:5173"
 

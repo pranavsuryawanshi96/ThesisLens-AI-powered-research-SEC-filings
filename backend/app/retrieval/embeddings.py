@@ -1,4 +1,4 @@
-"""Batch text embedding through the OpenAI API."""
+"""OpenAI embeddings, shared by ingestion and live queries so both use one model."""
 
 from openai import AsyncOpenAI
 
@@ -24,3 +24,8 @@ async def embed_texts(client: AsyncOpenAI, texts: list[str]) -> list[list[float]
             raise ValueError("OpenAI returned embeddings that do not match the request")
         vectors.extend(embeddings)
     return vectors
+
+
+async def embed_query(client: AsyncOpenAI, text: str) -> list[float]:
+    [vector] = await embed_texts(client, [text])
+    return vector

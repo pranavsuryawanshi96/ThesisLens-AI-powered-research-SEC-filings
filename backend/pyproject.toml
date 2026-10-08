@@ -24,6 +24,11 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 packages=["app"]
 
+[tool.pytest.ini_options]
+# A later -m on the command line overrides this, so `pytest -m integration` still works.
+addopts = "-m 'not integration'"
+markers = ["integration: needs live Supabase/OpenAI credentials; run with -m integration"]
+
 [tool.uv]
 add-bounds = "exact"
 exclude-newer = "7 days"

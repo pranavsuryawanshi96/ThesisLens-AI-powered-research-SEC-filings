@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.config import settings
-from ingest.embedding import BATCH_SIZE, embed_texts
+from app.retrieval.embeddings import BATCH_SIZE, embed_query, embed_texts
 
 DIMS = settings.openai_embedding_dimensions
 
@@ -45,6 +45,15 @@ def test_embed_texts_uses_configured_model_and_dimensions():
     call = client.embeddings.calls[0]
     assert call["model"] == settings.openai_embedding_model
     assert call["dimensions"] == DIMS
+
+
+def test_embed_query_returns_a_single_vector():
+    client = fake_client()
+
+    vector = asyncio.run(embed_query(client, "question 7"))
+
+    assert client.embeddings.calls[0]["input"] == ["question 7"]
+    assert vector == [7.0] * DIMS
 
 
 def test_embed_texts_rejects_wrong_dimensions():

@@ -1,0 +1,17 @@
+{
+  "_comment": "Sub-queries of the client-brief questions, phrased the way the agent will search. A result is relevant when it matches the filters and contains every phrase in all_of (case-insensitive). Starter labels: refine them against real chunks once the corpus is ingested.",
+  "queries": [
+    {"brief": 1, "query": "net sales by category iPhone Services Mac iPad Wearables", "tickers": ["AAPL"], "fiscal_years": [2024], "all_of": ["iPhone", "Wearables"]},
+    {"brief": 1, "query": "Services net sales increase drivers advertising App Store cloud", "tickers": ["AAPL"], "fiscal_years": [2022], "all_of": ["Services"]},
+    {"brief": 2, "query": "AWS segment operating income compared with North America and International", "tickers": ["AMZN"], "fiscal_years": [2023], "all_of": ["AWS", "operating income"]},
+    {"brief": 3, "query": "Data Center demand drivers and revenue growth", "tickers": ["NVDA"], "fiscal_years": [2025], "all_of": ["Data Center"]},
+    {"brief": 3, "query": "customer concentration sales to a single customer percentage of total revenue", "tickers": ["NVDA"], "fiscal_years": [2024], "all_of": ["customer", "revenue"]},
+    {"brief": 4, "query": "Azure and other cloud services revenue growth", "tickers": ["MSFT"], "fiscal_years": [2024], "all_of": ["Azure"]},
+    {"brief": 5, "query": "Google Search YouTube ads Google Network revenues", "tickers": ["GOOGL"], "fiscal_years": [2024], "all_of": ["YouTube ads", "Google Network"]},
+    {"brief": 6, "query": "export controls restrictions on sales to China", "tickers": ["NVDA"], "fiscal_years": [2024], "all_of": ["export"]},
+    {"brief": 7, "query": "reliance on outsourcing partners for manufacturing located in Asia", "tickers": ["AAPL"], "fiscal_years": [2025], "all_of": ["outsourcing partners"]},
+    {"brief": 8, "query": "capital expenditures additions to property and equipment for datacenters", "tickers": ["MSFT"], "fiscal_years": [2025], "all_of": ["property and equipment"]},
+    {"brief": 9, "query": "net sales by reportable segment Americas Europe Greater China Japan", "tickers": ["AAPL"], "fiscal_years": [2025], "all_of": ["Greater China"]},
+    {"brief": 10, "query": "artificial intelligence impact on gross margin", "tickers": ["MSFT"], "fiscal_years": [2025], "all_of": ["gross margin"]}
+  ]
+}

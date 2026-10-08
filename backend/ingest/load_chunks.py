@@ -4,10 +4,12 @@ Run from backend/:
   uv run python -m ingest.load_chunks --dry-run [--preview chunks.jsonl]   # no API, no DB
   uv run python -m ingest.load_chunks --one --ticker AAPL --year 2025      # embed + insert 1 chunk
   uv run python -m ingest.load_chunks                                      # full corpus
+  uv run python -m ingest.load_chunks --skip-embeddings                    # no OpenAI; full-text only
 
 A filing counts as done once source_documents.metadata.chunk_count is set; done filings
-are skipped. Any other chunks a filing has (an interrupted run, the --one test) are
-deleted and rebuilt.
+are skipped. Any other chunks a filing has (an interrupted run, the --one test, a
+--skip-embeddings run) are deleted and rebuilt. --skip-embeddings never marks a filing
+done, so the next normal run replaces its chunks with embedded ones.
 """
 
 import argparse
@@ -26,6 +28,7 @@ from supabase import AsyncClient
 
 from app.config import BACKEND_DIR, settings
 from app.database.supabase import create_service_client
+from app.retrieval.embeddings import embed_texts
 from ingest.chunking import (
     MAX_TOKENS,
     Chunk,
@@ -35,7 +38,6 @@ from ingest.chunking import (
     get_chunker,
     prepare_document,
 )
-from ingest.embedding import embed_texts
 
 DOWNLOADS_DIR = BACKEND_DIR.parent / "data" / "downloads"
 # The API rejects inputs over 8191 tokens; MAX_TOKENS is our own, lower target.
@@ -62,7 +64,7 @@ def filing_path(filing: dict[str, Any]) -> Path:
     return DOWNLOADS_DIR / filing["local_path"].replace("\\", "/")
 
 
-def chunk_row(document: dict[str, Any], chunk: Chunk, embedding: list[float]) -> dict[str, Any]:
+def chunk_row(document: dict[str, Any], chunk: Chunk, embedding: list[float] | None) -> dict[str, Any]:
     return {
         "document_id": document["id"],
         "chunk_index": chunk.index,
@@ -99,14 +101,18 @@ async def fetch_document(client: AsyncClient, accession_number: str) -> dict[str
 
 
 async def insert_chunks(
-    client: AsyncClient, openai: AsyncOpenAI, document: dict[str, Any], chunks: list[Chunk]
+    client: AsyncClient, openai: AsyncOpenAI | None, document: dict[str, Any], chunks: list[Chunk]
 ) -> None:
+    """Without an OpenAI client, chunks are stored with a null embedding."""
     oversized = [chunk.index for chunk in chunks if chunk.token_count > MAX_INPUT_TOKENS]
     if oversized:
         raise ValueError(f"chunks {oversized} exceed the embedding input limit")
     for start in range(0, len(chunks), INSERT_BATCH_SIZE):
         batch = chunks[start : start + INSERT_BATCH_SIZE]
-        embeddings = await embed_texts(openai, [chunk.embed_text for chunk in batch])
+        if openai is None:
+            embeddings: list[list[float] | None] = [None] * len(batch)
+        else:
+            embeddings = await embed_texts(openai, [chunk.embed_text for chunk in batch])
         rows = [chunk_row(document, chunk, embedding) for chunk, embedding in zip(batch, embeddings, strict=True)]
         await client.table("document_chunks").insert(rows).execute()
         print(f"  {start + len(batch)}/{len(chunks)} chunks written")
@@ -193,9 +199,9 @@ def verify_chunk(document_id: str, chunk: Chunk) -> None:
         sys.exit(1)
 
 
-async def run_all(filings: list[dict[str, Any]]) -> None:
+async def run_all(filings: list[dict[str, Any]], skip_embeddings: bool = False) -> None:
     client = await create_service_client()
-    openai = AsyncOpenAI(api_key=settings.openai_api_key)
+    openai = None if skip_embeddings else AsyncOpenAI(api_key=settings.openai_api_key)
     for filing in filings:
         document = await fetch_document(client, filing["accession_number"])
         label = f"{document['ticker']} {document['fiscal_year']}"
@@ -206,6 +212,9 @@ async def run_all(filings: list[dict[str, Any]]) -> None:
         chunks = chunk_filing(filing_path(filing))
         await delete_chunks(client, document["id"])
         await insert_chunks(client, openai, document, chunks)
+        if skip_embeddings:
+            print(f"{label}: done, {len(chunks)} chunks without embeddings (not marked complete)")
+            continue
         metadata = {**document["metadata"], "chunk_count": len(chunks), "chunk_max_tokens": MAX_TOKENS}
         await client.table("source_documents").update({"metadata": metadata}).eq("id", document["id"]).execute()
         print(f"{label}: done, {len(chunks)} chunks")
@@ -216,6 +225,11 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="chunk only; no OpenAI calls, no DB writes")
     mode.add_argument("--one", action="store_true", help="embed and insert a single chunk, then verify it")
+    mode.add_argument(
+        "--skip-embeddings",
+        action="store_true",
+        help="insert chunks with no embedding (no OpenAI calls); full-text search only",
+    )
     parser.add_argument("--ticker")
     parser.add_argument("--year", type=int)
     parser.add_argument("--preview", type=Path, help="dry run: write every chunk to this JSONL file")
@@ -229,7 +243,7 @@ def main() -> None:
     elif args.one:
         asyncio.run(run_one(filings[0]))
     else:
-        asyncio.run(run_all(filings))
+        asyncio.run(run_all(filings, skip_embeddings=args.skip_embeddings))
 
 
 if __name__ == "__main__":
