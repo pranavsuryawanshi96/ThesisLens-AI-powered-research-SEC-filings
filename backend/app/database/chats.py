@@ -71,3 +71,13 @@ async def save_turn(
     if title is not None:
         thread_update["title"] = title
     await client.table("chat_threads").update(thread_update).eq("id", str(thread_id)).execute()
+
+
+async def save_citations(
+    client: AsyncClient, message_id: str, citations: list[dict[str, Any]]
+) -> None:
+    """`citations` rows hold chunk_id, citation_index and quote."""
+    if not citations:
+        return
+    rows = [{**citation, "message_id": message_id} for citation in citations]
+    await client.table("message_citations").insert(rows).execute()

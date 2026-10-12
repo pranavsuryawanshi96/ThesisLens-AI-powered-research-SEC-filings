@@ -114,3 +114,5 @@ if __name__ == "__main__":
     parser.add_argument("--year", type=int)
     # psycopg's async driver cannot run on Windows' default Proactor event loop.
     asyncio.run(main(parser.parse_args()), loop_factory=asyncio.SelectorEventLoop)
+
+

@@ -2,22 +2,35 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from supabase import AsyncClient
 
+from app.assistant.agent import DocumentAgent
 from app.auth.dependencies import CurrentUser, CurrentUserDep, UserClientDep
 from app.chat.messages import ChatStreamRequest, UIMessage
-from app.chat.orchestrator import stream_stub_turn
+from app.chat.orchestrator import stream_grounded_turn
 from app.chat.streaming import STREAM_HEADERS
 from app.database import chats
 from app.database.supabase import get_service_client
+from app.retrieval.retriever import DocumentRetriever
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+
+def get_agent(request: Request) -> DocumentAgent:
+    return request.app.state.agent
+
+
+def get_retriever(request: Request) -> DocumentRetriever:
+    return request.app.state.retriever
+
+
 ServiceClientDep = Annotated[AsyncClient, Depends(get_service_client)]
+AgentDep = Annotated[DocumentAgent, Depends(get_agent)]
+RetrieverDep = Annotated[DocumentRetriever, Depends(get_retriever)]
 
 
 class CamelModel(BaseModel):
@@ -74,12 +87,16 @@ async def list_messages(
 
 @router.post("/stream")
 async def stream(
-    body: ChatStreamRequest, user: CurrentUserDep, service: ServiceClientDep
+    body: ChatStreamRequest,
+    user: CurrentUserDep,
+    service: ServiceClientDep,
+    agent: AgentDep,
+    retriever: RetrieverDep,
 ) -> StreamingResponse:
     # Checked before streaming starts, so auth and ownership failures are plain HTTP errors.
     thread = await get_owned_thread(service, body.thread_id, user)
     return StreamingResponse(
-        stream_stub_turn(service, thread, body.user_message),
+        stream_grounded_turn(service, agent, retriever, user.id, thread, body.user_message),
         media_type="text/event-stream",
         headers=STREAM_HEADERS,
     )

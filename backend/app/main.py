@@ -3,16 +3,26 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from openai import AsyncOpenAI
 
 from app.api.chat import router as chat_router
+from app.assistant.agent import build_agent, create_chat_model
 from app.config import settings
+from app.database.session import create_engine
 from app.database.supabase import create_service_client
+from app.retrieval.retriever import DocumentRetriever
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.supabase_service = await create_service_client()
+    engine = create_engine()
+    openai = AsyncOpenAI(api_key=settings.openai_api_key)
+    app.state.retriever = DocumentRetriever(engine, openai)
+    app.state.agent = build_agent(create_chat_model(openai))
     yield
+    await engine.dispose()
+    await openai.close()
 
 
 app = FastAPI(title="ThesisLens API", lifespan=lifespan)

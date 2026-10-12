@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api import chat as chat_api
 from app.auth.dependencies import CurrentUser, get_current_user, get_user_client
 from app.database import chats
 from app.database.supabase import get_service_client
@@ -23,6 +24,8 @@ def client():
     app.dependency_overrides[get_current_user] = lambda: USER
     app.dependency_overrides[get_user_client] = lambda: "user-client"
     app.dependency_overrides[get_service_client] = lambda: "service-client"
+    app.dependency_overrides[chat_api.get_agent] = lambda: "agent"
+    app.dependency_overrides[chat_api.get_retriever] = lambda: "retriever"
     # Not entered as a context manager: the lifespan would build a real Supabase client.
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -146,42 +149,25 @@ def test_stream_rejects_turn_without_user_message(client, threads):
     assert client.post("/chat/stream", json=body).status_code == 422
 
 
-def test_stream_emits_ai_sdk_events_then_persists_turn(client, threads):
+def test_stream_hands_the_turn_to_the_orchestrator_as_an_ai_sdk_stream(client, threads, monkeypatch):
     thread = threads(thread_row(USER.id))
     question = "How did Apple's revenue mix change?"
+    calls = []
+
+    async def fake_turn(service, agent, retriever, user_id, owned_thread, user_message):
+        calls.append((service, agent, retriever, user_id, owned_thread, user_message))
+        yield 'data: {"type": "start", "messageId": "m1"}\n\n'
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(chat_api, "stream_grounded_turn", fake_turn)
 
     response = client.post("/chat/stream", json=stream_body(thread["id"], question))
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     assert response.headers["x-vercel-ai-ui-message-stream"] == "v1"
-
-    events = parse_events(response.text)
-    types = [e if e == "[DONE]" else e["type"] for e in events]
-    assert types[:2] == ["start", "text-start"]
-    assert types[-3:] == ["text-end", "finish", "[DONE]"]
-    reply = "".join(e["delta"] for e in events if e != "[DONE]" and e["type"] == "text-delta")
-    assert question in reply
-
-    [turn] = threads.saved
-    assert turn["client"] == "service-client"
-    assert turn["thread_id"] == UUID(thread["id"])
-    assert turn["title"] == question
-    user_msg, assistant_msg = turn["messages"]
-    assert user_msg == {
-        "role": "user",
-        "content": question,
-        "parts": [{"type": "text", "text": question}],
-    }
-    assert assistant_msg["id"] == events[0]["messageId"]
-    assert assistant_msg["role"] == "assistant"
-    assert assistant_msg["content"] == reply
-    assert assistant_msg["parts"] == [{"type": "text", "text": reply}]
-
-
-def test_stream_keeps_custom_title(client, threads):
-    thread = threads(thread_row(USER.id, title="Azure capacity"))
-
-    client.post("/chat/stream", json=stream_body(thread["id"]))
-
-    assert threads.saved[0]["title"] is None
+    assert parse_events(response.text) == [{"type": "start", "messageId": "m1"}, "[DONE]"]
+    [(service, agent, retriever, user_id, owned_thread, user_message)] = calls
+    assert (service, agent, retriever, user_id) == ("service-client", "agent", "retriever", USER.id)
+    assert UUID(owned_thread["id"]) == UUID(thread["id"])
+    assert user_message.parts == [{"type": "text", "text": question}]

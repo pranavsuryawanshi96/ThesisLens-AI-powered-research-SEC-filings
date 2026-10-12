@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
+    openai_chat_model: str = "gpt-5-mini"
 
     # Hybrid retrieval. The full-text config is not a setting: it must match the
     # 'english' used by the generated search_vector column.
